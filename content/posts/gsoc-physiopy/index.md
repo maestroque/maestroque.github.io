@@ -5,13 +5,14 @@ draft = false
 toc = true
 +++
 
+{{< lead >}}
+*"Semi-Automated Workflows for Physiological Signals"*
+{{< /lead >}}
+
 During the summer of 2024, I had the chance to become a Google Summer of Code student, contributing in the [Physiopy](https://physiopy.github.io/) community, under the [INCF](https://www.incf.org/) organization. In this page, which is also serving as my Work Product Submission for finalizing my GSoC participation, the project will be presented, how it progressed during the summer and what future directions it could take. 
 Emphasis is going to be given to the development breakdown, the rationale of all the contributions and the main ideas for future development.
 
 ## 1. Project Overview
-{{< lead >}}
-*"Semi-Automated Workflows for Physiological Signals"*
-{{< /lead >}}
 
 In general, the project entailed the upgrade and restructuring of existing Physiopy packages, `peakdet` and `phys2denoise`, in order to be used more harmoniously with each other. 
 Following the upgrade, the development of semi-automated workflows was planned, along with the accompanying CLI. 
@@ -33,6 +34,10 @@ Following the upgrade, the development of semi-automated workflows was planned, 
 
 ### 3.1 Infrastructure 
 
+Some of my first contributions to physiopy included infrastructure upgrades, notably pre-commit hook configurations for style checks and the configuration of the [`loguru`](https://loguru.readthedocs.io/en/stable/#readme) package as the primary logger in `peakdet`.
+
+The main benefit of `loguru` that was exploited is that other than the fully customizable stylized logs, the module can also catch exceptions and log them in the same manner, improving uniformity when used in a CLI for example. Furthermore, `loguru` can provide insightful diagnostics if exceptions happen, making the overall user experience better. A set of utility functions was implemented to wrap around the `loguru` logger, in order to make the developer use easier as well.
+
 ### 3.2 Optimizing peakdet/phys2denoise interoperability
 
 The `peakdet` and `phys2denoise` packages, have been both very critical packages of the physiopy suite, with their operation being frequently sequential in multiple fMRI denoising applications. 
@@ -41,15 +46,19 @@ However, by nature up to this point, `peakdet` was built in an "object-oriented"
 The main idea was to incorporate the `Physio` object into both packages, to exploit some of its powerful features, such as operation history management and history "replaying" and easy interfacing with multiple input physiological data types.
 Therefore, the main challenge was to make this migration, incorporating these features to `phys2denoise` and adding more to cater to the additional needs, while continuing to support its "function-only" use.
 
-Initially, prior to the upgrade, a new package was issued for this scope: `physutils`.
+At the beggining of my GSoC project, prior to the upgrade, a new package was issued for this scope: `physutils`.
 This module would host the common physiopy suite tools, to be used throughout the physiopy packages, with one of them being the `Physio` object.
 Another honorable mention is that while `phys2denoise` has now fully migrated to use `physutils`, the community decided to proceed with such changes in a fork of the `peakdet` package, re-named as [`prep4phys`](https://github.com/physiopy/prep4phys), which will serve as the active package moving on.
 
+Within `physutils` the `Physio` object was upgraded to contain more information about the contained physiological signal, aiming for most information used throughout the processing packages `prep4phys` and `phys2denoise` to be contained within it.
+Another major addition, used in conjunction with the previous one, was the ability to generate `Physio` objects from [BIDS structures](https://bids-specification.readthedocs.io/en/stable/) using the `physutils.io.load_from_bids` function, which are most commonly used in research. Another advantage of this feature is the out-of-the-box compatibility with the widely used [`phys2bids`](https://phys2bids.readthedocs.io/en/latest/) module, developed by the Physiopy community, which transforms many data types commonly found in physiological recording setups (e.g. BIOPAC, ADInstruments) into the more standardized BIDS format. This was aided by the use of the [`pybids`](https://bids-standard.github.io/pybids/) module, and allowed for a BIDS structure to be transformed into an array of Physio objects, extracting all information relevant to the physiological signals.
 
+This was a well needed feature, since BIDS support would greatly motivate the users to make use of `phys2denoise` and `prep4phys`, since this `physutils` function would be used as an entry point to both. Thus, a step was made towards a unified `physiopy` suite of tools, decreasing user involvement in custom scripts using the libraries, as all would communicate through standardized objects.
 
 ### 3.3 Workflow and CLI for phys2denoise
 
-For the structuring of the `phys2denoise` workflow, the `pydra` python package was used, a dataflow engine commonly used in neuroimaging. 
+The next step, would be to create a workflow model for one of the packages, `phys2denoise`.
+For its structuring, the `pydra` python package was used, a dataflow engine commonly used in neuroimaging, that allows for distributed execution of data processing routines, while also ensuring the reproducibility of these routines. 
 Since `phys2denoise`'s use is pretty straightforward, the workflow turned out to be linear, with all component `pydra` tasks, being used sequentially. The following three tasks were defined for the workflow:
 
 {{< mermaid >}}
@@ -82,6 +91,7 @@ def compute_metrics(
 Finally, the `export_metrics` task exports the specified metrics, which could be a subset of the computed ones. 
 If no export metric parameters are specified, the CLI defaults to exporting all the metrics. 
 Exporting includes generating 1D files that contain the metric. If a metric contains lags, then a file will be exported for each lag value, and if a metric is convolved it will export both a file of the convolved signal and a file of the raw signal. Furthermore, all metrics are both exported in the original sample rate and resampled at the fMRI scan TR.
+
 ```python
 def export_metrics(
     phys: Physio, metrics: Union[list, str], 
@@ -89,17 +99,23 @@ def export_metrics(
 ) -> int:
 ```
 
-A current version of a CLI run can be seen as captured below
+Lastly, this flowgraph is templated so that it can be built given the parameters passed to the CLI by the user. A current version of a CLI run can be seen as captured below
 
 <script src="https://asciinema.org/a/PHi5AIIpxSH9jsq1AvKELom09.js" id="asciicast-PHi5AIIpxSH9jsq1AvKELom09" async="true"></script>
 
+
 ## 4. Future Directions
+Furthermore, I will list some of my thoughts for improvements and optimizations on the packages which were out of the scope of my summer in GSoC.
 
-### 4.1 Infrastructure
+**Infrastructure**
+- One change that would improve uniformity throughout the packages (and respective CLIs in the future) would be to migrate the `loguru` utility functions from `peakdet` to `physutils` in order for them to be used in all modules. 
+- Furthermore, the issue observed regarding the inclusion of `loguru` logger calls inside `pydra` tasks, shall be resolved. As of now, it is not certain if the issue stems from `pydra`/`loguru` or the Physiopy packages yet.
 
-### 4.2 CLI for peakdet
+**Physio Object**
 
-### 4.3 CLI for physiopy suite
+
+**CLI Development**
+- One of the main advantages of `pydra` as mentioned above is the ability to parallelize tasks. In the case of `phys2denoise` this wouldn't be the case at a first glance due to its linearity. However, an upgrade of the CLI could be considered to allow for the processing of multi-subject multi-session physiological data concurrently.
 
 ---
 Lastly, I'd like to express my gratitude towards my mentors Stefano Moia ([@smoia](https://github.com/smoia)), Mary-Eve Picard ([@me-pic](https://github.com/me-pic)) and Mary Miedema ([@m-miedema](https://github.com/m-miedema)) and the physiopy community for providing me with this great experience. 
