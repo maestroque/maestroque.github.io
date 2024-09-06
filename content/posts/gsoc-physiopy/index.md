@@ -75,6 +75,9 @@ style A fill:#c197db,stroke:#333
 
 Moving on, regarding the integration of the `Physio` object into the `phys2denoise` module, a careful approach had to be considered, in order to maintain the ability of the package to be used both with and without `Physio`. In order to do this a wrapper was created to handle function I/O differently in case the input was a `Physio` object or a `numpy.array`-like object for example.
 - In case a `Physio` is used, all the necessary information is already embedded for the metric computation (sampling frequency, peak/trough data) and the metric is saved in the `Physio.computed_metrics` dictionary (with members of type `Metric` containing the metric numerical data along with metadata). Then all the computed metrics can be referenced by name as `physio.computed_metrics["<Metric_Name>"]`. Note that all the computations along with the arguments passed are saved in the `Physio` object's history and can be reproduced given the `history.json` file
+- In case a non-`Physio` type is used (e.g. `numpy.array`-like) then the signal metadata are not embedded and require explicit passing to the function. The user is prompted to provide these data to the function if they are not present and the metric is computed and returned. In case the user explicitly states it, a `Physio` object can be returned as well with all the provided data and computed metric, however if they do not desire the use of `Physio`, the `phys2denoise` functions can still be used out of the box.
+
+These changes and further information about the `phys2denoise` module can be found in the [`phys2denoise` docs](https://phys2denoise.readthedocs.io/en/latest/index.html) I also composed during the summer.
 
 ### 3.3 Workflow and CLI for phys2denoise
 
