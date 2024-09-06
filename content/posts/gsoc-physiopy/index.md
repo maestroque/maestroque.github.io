@@ -1,5 +1,5 @@
 +++
-title = 'GSoC Physiopy'
+title = 'Google Summer of Code 2024: My contribution in Physiopy'
 date = 2024-09-03T19:33:41+03:00
 draft = false
 toc = true
