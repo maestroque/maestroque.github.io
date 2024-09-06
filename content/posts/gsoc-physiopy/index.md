@@ -53,7 +53,28 @@ Another honorable mention is that while `phys2denoise` has now fully migrated to
 Within `physutils` the `Physio` object was upgraded to contain more information about the contained physiological signal, aiming for most information used throughout the processing packages `prep4phys` and `phys2denoise` to be contained within it.
 Another major addition, used in conjunction with the previous one, was the ability to generate `Physio` objects from [BIDS structures](https://bids-specification.readthedocs.io/en/stable/) using the `physutils.io.load_from_bids` function, which are most commonly used in research. Another advantage of this feature is the out-of-the-box compatibility with the widely used [`phys2bids`](https://phys2bids.readthedocs.io/en/latest/) module, developed by the Physiopy community, which transforms many data types commonly found in physiological recording setups (e.g. BIOPAC, ADInstruments) into the more standardized BIDS format. This was aided by the use of the [`pybids`](https://bids-standard.github.io/pybids/) module, and allowed for a BIDS structure to be transformed into an array of Physio objects, extracting all information relevant to the physiological signals.
 
-This was a well needed feature, since BIDS support would greatly motivate the users to make use of `phys2denoise` and `prep4phys`, since this `physutils` function would be used as an entry point to both. Thus, a step was made towards a unified `physiopy` suite of tools, decreasing user involvement in custom scripts using the libraries, as all would communicate through standardized objects.
+This was a well needed feature, since BIDS support would greatly motivate the users to make use of `phys2denoise` and `prep4phys`, since this `physutils` function would be used as an entry point to both. Thus, a step was made towards a unified `physiopy` suite of tools, decreasing user involvement in custom scripts using the libraries, as all would communicate through standardized objects. Below a flowgraph can be seen describing the interfaces between the packages.
+
+{{< mermaid >}}
+graph LR;
+Z[Recording Data]-->A[phys2bids]-->|BIDS Data| B[physutils.io.load_from_bids];
+classDef redArrow stroke:#ff0000,stroke-width:2px;
+B-- Physio --> DataProcessing
+subgraph DataProcessing[Physiological Data Processing]
+direction TB;
+    C[phys2denoise]
+    D[prep4phys/peakdet]
+    E[physioqc]
+    C<-.->|Physio|D
+    D<-.->|Physio|E
+end
+style A fill:#c197db,stroke:#333
+{{< /mermaid >}}
+
+---
+
+Moving on, regarding the integration of the `Physio` object into the `phys2denoise` module, a careful approach had to be considered, in order to maintain the ability of the package to be used both with and without `Physio`. In order to do this a wrapper was created to handle function I/O differently in case the input was a `Physio` object or a `numpy.array`-like object for example.
+- In case a `Physio` is used, all the necessary information is already embedded for the metric computation (sampling frequency, peak/trough data) and the metric is saved in the `Physio.computed_metrics` dictionary (with members of type `Metric` containing the metric numerical data along with metadata). Then all the computed metrics can be referenced by name as `physio.computed_metrics["<Metric_Name>"]`. Note that all the computations along with the arguments passed are saved in the `Physio` object's history and can be reproduced given the `history.json` file
 
 ### 3.3 Workflow and CLI for phys2denoise
 
@@ -112,7 +133,7 @@ Furthermore, I will list some of my thoughts for improvements and optimizations 
 - Furthermore, the issue observed regarding the inclusion of `loguru` logger calls inside `pydra` tasks, shall be resolved. As of now, it is not certain if the issue stems from `pydra`/`loguru` or the Physiopy packages yet.
 
 **Physio Object**
-
+- One of the directions towards further upgrading the `Physio` object, would be the integration of a `MultimodalPhysio` class, that would encapsulate all the physiological signals, per recording, into one object. Furthermore, it could also contain an `MRIConfig` object, hosting all the common MRI parameters among the physiological data (TR, Slice Timings, Number of Scans, etc.) which are also used in metrics computations. The inclusion of such a class would be greatly beneficial as it would be able to contain all the information from a BIDS structure (per subject/session/recording). Lastly, given the trigger channel commonly included in BIDS files, several `MRIConfig` parameters could also be computed using simple signal processing. [[Issue]](https://github.com/physiopy/physutils/issues/5)
 
 **CLI Development**
 - One of the main advantages of `pydra` as mentioned above is the ability to parallelize tasks. In the case of `phys2denoise` this wouldn't be the case at a first glance due to its linearity. However, an upgrade of the CLI could be considered to allow for the processing of multi-subject multi-session physiological data concurrently.
